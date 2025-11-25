@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "type": "java",
+            "name": "Run Salvaging Plugin with debug",
+            "request": "launch",
+            "mainClass": "com.salvaging.SalvagingPluginTest",
+            "projectName": "salvaging-plugin",
+            "vmArgs": "-ea",
+            "args": "--developer-mode --debug"
+        },
+        {
+            "type": "java",
+            "name": "Run Salvaging Plugin",
+            "request": "launch",
+            "mainClass": "com.salvaging.SalvagingPluginTest",
+            "projectName": "salvaging-plugin",
+            "vmArgs": "-ea",
+            "args": "--developer-mode"
+        }
+    ]
+}
