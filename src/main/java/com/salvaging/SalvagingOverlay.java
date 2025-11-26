@@ -41,7 +41,7 @@ public class SalvagingOverlay extends Overlay
     @Override
     public Dimension render(Graphics2D graphics)
     {
-        // First, calculate which tiles are in overlap zones (only for active shipwrecks)
+        // Calculate which tiles are in overlap zones (active only)
         Map<WorldPoint, Integer> tileOverlapCount = new HashMap<>();
 
         for (GameObject shipwreck : plugin.getActiveShipwrecks())
@@ -79,7 +79,7 @@ public class SalvagingOverlay extends Overlay
             }
         }
 
-        // Now render the shipwrecks
+        // Shipwreck highlighting
         for (GameObject shipwreck : plugin.getActiveShipwrecks())
         {
             if (!plugin.isShipwreckEnabled(shipwreck))
@@ -90,7 +90,7 @@ public class SalvagingOverlay extends Overlay
             WorldPoint shipwreckLocation = shipwreck.getWorldLocation();
             boolean isDepleted = plugin.isShipwreckDepleted(shipwreck);
 
-            // Highlight the shipwreck itself
+        
             if (isDepleted)
             {
                 // Depleted/inactive shipwrecks - RED
@@ -172,7 +172,6 @@ public class SalvagingOverlay extends Overlay
                 // Check if this tile is in an overlap zone (double spot)
                 boolean isOverlap = config.showOverlap() && tileOverlapCount.getOrDefault(tilePoint, 0) > 1;
 
-                // Determine which edges should have borders (only outer edges)
                 boolean isWestEdge = (x == minX);
                 boolean isEastEdge = (x == maxX);
                 boolean isSouthEdge = (y == minY);
@@ -204,7 +203,6 @@ public class SalvagingOverlay extends Overlay
             return;
         }
 
-        // Draw fill
         graphics.setColor(fillColor);
         graphics.fillPolygon(tilePoly);
 

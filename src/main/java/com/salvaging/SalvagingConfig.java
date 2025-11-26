@@ -11,11 +11,31 @@ import net.runelite.client.config.Range;
 @ConfigGroup("salvaging")
 public interface SalvagingConfig extends Config
 {
+    // Boat Hiding Section
+    @ConfigSection(
+            name = "Boat Hiding",
+            description = "Settings for hiding other players' boats",
+            position = 0
+    )
+    String boatHidingSection = "boatHiding";
+
+    @ConfigItem(
+            keyName = "hideOtherBoats",
+            name = "Hide Other Boats in Salvage Range",
+            description = "Hides other players' boats when you are within salvage range of an active shipwreck",
+            section = boatHidingSection,
+            position = 0
+    )
+    default boolean hideOtherBoats()
+    {
+        return true;
+    }
+
     // Shipwreck Highlight Section
     @ConfigSection(
             name = "Shipwreck Highlights",
             description = "Settings for shipwreck highlighting",
-            position = 0
+            position = 1
     )
     String shipwreckHighlightSection = "shipwreckHighlight";
 
@@ -73,7 +93,7 @@ public interface SalvagingConfig extends Config
     @ConfigSection(
             name = "Salvage Range",
             description = "Settings for the salvage range overlay",
-            position = 1
+            position = 2
     )
     String salvageRangeSection = "salvageRange";
 
@@ -145,7 +165,7 @@ public interface SalvagingConfig extends Config
     @ConfigSection(
             name = "Salvage Overlap (Double Spots)",
             description = "Settings for overlapping salvage ranges",
-            position = 2
+            position = 3
     )
     String salvageOverlapSection = "salvageOverlap";
 
@@ -191,7 +211,7 @@ public interface SalvagingConfig extends Config
     @ConfigSection(
             name = "Toggle Shipwrecks",
             description = "Enable or disable specific shipwreck types",
-            position = 3,
+            position = 4,
             closedByDefault = true
     )
     String toggleShipwrecksSection = "toggleShipwrecks";

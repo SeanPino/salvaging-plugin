@@ -6,9 +6,16 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameObject;
 import net.runelite.api.GameState;
+import net.runelite.api.Player;
+import net.runelite.api.Renderable;
+import net.runelite.api.Scene;
+import net.runelite.api.WorldEntity;
+import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameObjectSpawned;
 import net.runelite.api.events.GameObjectDespawned;
 import net.runelite.api.events.GameStateChanged;
+import net.runelite.client.callback.Hooks;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
@@ -46,6 +53,9 @@ public class SalvagingPlugin extends Plugin
     private static final Set<Integer> FREMENNIK_SHIPWRECK_DEPLETED_IDS = Set.of(60477);
     private static final Set<Integer> MERCHANT_SHIPWRECK_DEPLETED_IDS = Set.of(60479);
 
+    private static final int SALVAGE_RANGE = 7;
+    private static final int SHIPWRECK_SIZE = 2;
+
     @Inject
     private Client client;
 
@@ -58,12 +68,18 @@ public class SalvagingPlugin extends Plugin
     @Inject
     private SalvagingOverlay overlay;
 
+    @Inject
+    private Hooks hooks;
+
     private final Set<GameObject> activeShipwrecks = new HashSet<>();
+
+    private final Hooks.RenderableDrawListener drawListener = this::shouldDraw;
 
     @Override
     protected void startUp() throws Exception
     {
         overlayManager.add(overlay);
+        hooks.registerRenderableDrawListener(drawListener);
         log.info("Salvaging plugin started!");
     }
 
@@ -71,8 +87,124 @@ public class SalvagingPlugin extends Plugin
     protected void shutDown() throws Exception
     {
         overlayManager.remove(overlay);
+        hooks.unregisterRenderableDrawListener(drawListener);
         activeShipwrecks.clear();
         log.info("Salvaging plugin stopped!");
+    }
+
+    
+    // Hides other players' boats when the local player is within salvage range of an active shipwreck.
+    private boolean shouldDraw(Renderable renderable, boolean drawingUI)
+    {
+        if (!config.hideOtherBoats())
+        {
+            return true;
+        }
+
+        if (renderable instanceof Scene)
+        {
+            Scene scene = (Scene) renderable;
+
+            if (client.getTopLevelWorldView() == null)
+            {
+                return true;
+            }
+
+            WorldEntity we = client.getTopLevelWorldView().worldEntities().byIndex(scene.getWorldViewId());
+            if (we == null)
+            {
+                return true;
+            }
+
+            if (we.getOwnerType() == WorldEntity.OWNER_TYPE_OTHER_PLAYER)
+            {
+                boolean inRange = isPlayerInSalvageRange();
+                //log.debug("Other player boat detected, inSalvageRange={}", inRange);
+                if (inRange)
+                {
+                    return false; // Hide the boat
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Checks if the local player's boat is within salvage range of any active (salvageable) shipwreck.
+     */
+    public boolean isPlayerInSalvageRange()
+    {
+        // Get the player's boat location (WorldEntity), not the player's local position on the boat
+        WorldPoint boatLocation = getPlayerBoatLocation();
+        if (boatLocation == null)
+        {
+            return false;
+        }
+
+        for (GameObject shipwreck : activeShipwrecks)
+        {
+            if (!isShipwreckEnabled(shipwreck))
+            {
+                continue;
+            }
+
+            // Only check salvageable (active) shipwrecks
+            if (isShipwreckDepleted(shipwreck))
+            {
+                continue;
+            }
+
+            WorldPoint shipwreckLocation = shipwreck.getWorldLocation();
+
+            // Check if boat is within the salvage range
+            int minX = shipwreckLocation.getX() - SALVAGE_RANGE;
+            int maxX = shipwreckLocation.getX() + SHIPWRECK_SIZE - 1 + SALVAGE_RANGE;
+            int minY = shipwreckLocation.getY() - SALVAGE_RANGE;
+            int maxY = shipwreckLocation.getY() + SHIPWRECK_SIZE - 1 + SALVAGE_RANGE;
+
+            if (boatLocation.getPlane() == shipwreckLocation.getPlane() &&
+                boatLocation.getX() >= minX && boatLocation.getX() <= maxX &&
+                boatLocation.getY() >= minY && boatLocation.getY() <= maxY)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+    // Gets the world location of the player's boat.
+    private WorldPoint getPlayerBoatLocation()
+    {
+        if (client.getTopLevelWorldView() == null)
+        {
+            return null;
+        }
+
+        for (WorldEntity we : client.getTopLevelWorldView().worldEntities())
+        {
+            // Our boat is OWNER_TYPE_SELF_PLAYER
+            if (we != null && we.getOwnerType() == WorldEntity.OWNER_TYPE_SELF_PLAYER)
+            {
+                // getLocalLocation() returns the location in the top level world
+                LocalPoint localPoint = we.getLocalLocation();
+                if (localPoint != null)
+                {
+                    return WorldPoint.fromLocal(client, localPoint);
+                }
+            }
+        }
+
+        // Fallback to player location if not on a boat
+        Player localPlayer = client.getLocalPlayer();
+        if (localPlayer != null)
+        {
+            return localPlayer.getWorldLocation();
+        }
+
+        return null;
     }
 
     @Subscribe
@@ -82,6 +214,8 @@ public class SalvagingPlugin extends Plugin
         if (isShipwreck(gameObject) && isShipwreckEnabled(gameObject))
         {
             activeShipwrecks.add(gameObject);
+            log.debug("Shipwreck spawned: ID={}, Location={}, Salvageable={}", 
+                gameObject.getId(), gameObject.getWorldLocation(), isShipwreckSalvageable(gameObject));
         }
     }
 
